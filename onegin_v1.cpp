@@ -1,8 +1,10 @@
 #include <cerrno>
+#include <corecrt.h>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <io.h>
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -28,14 +30,8 @@ enum read_errors
     ERR_FILE_DID_NOT_READ = -5
 };
 
-struct Text
-{
-    char* buffer;
-    char** str_indexes;
-};
-
-int ReadFromFile(Text* orig_text, Text* sorted_text, Text* rev_sorted_text, const int file_descriptor);
-
+int ReadFromFileToBuffer(Text* text, const int file_descriptor);
+int GetStrsIndexesFromBuffer(Text* text);
 
 int main()
 {
@@ -43,39 +39,50 @@ int main()
     Text sorted_text = {NULL, NULL};
     Text rev_sorted_text = {NULL, NULL};
 
-
     int file_descriptor = open("onegin.txt", O_RDONLY | O_BINARY);
-    int real_num_of_strs = ReadFromFile(&orig_text, &sorted_text, &rev_sorted_text, file_descriptor);
-
+    int real_num_of_strs = ReadFromFileToBuffer(&orig_text, file_descriptor);
     if (real_num_of_strs < 0) {printf("Error: input file isn't opened"); return 1;}
+
+    sorted_text = orig_text;
+    sorted_text.lines = (Line*)calloc((size_t)sorted_text.num_of_strs, sizeof(Line));
+    rev_sorted_text = orig_text;
+    rev_sorted_text.lines = (Line*)calloc((size_t)rev_sorted_text.num_of_strs, sizeof(Line));
+    for (int i = 0; i < orig_text.num_of_strs; i++)
+    {
+        sorted_text.lines[i] = orig_text.lines[i];
+        rev_sorted_text.lines[i] = orig_text.lines[i];
+    }
+
+
+
 
     FILE *file_out = fopen("onegin_out.txt", "w");
     if (file_out == NULL) {printf("Error: output file isn't opened"); return 1;}
 
-    if (real_num_of_strs != 0) BubbleSorting(sorted_text.str_indexes, (size_t)real_num_of_strs, sizeof(orig_text.str_indexes[0]), Compar);
+    if (real_num_of_strs != 0) BubbleSorting(sorted_text.lines, (size_t)real_num_of_strs, sizeof(orig_text.lines[0]), Compar);
 
     fprintf(file_out, "<<<---SORTED TEXT --->>>\n");
     for (int i = 0; i < real_num_of_strs; i++)
-        fprintf(file_out, "%s\n", sorted_text.str_indexes[i]);
+        fprintf(file_out, "%s\n", sorted_text.lines[i].str_index);
 
-    qsort(rev_sorted_text.str_indexes, (size_t)real_num_of_strs, sizeof(orig_text.str_indexes[0]), Compar_Reverse);
+    qsort(rev_sorted_text.lines, (size_t)real_num_of_strs, sizeof(orig_text.lines[0]), Compar_Reverse);
 
     fprintf(file_out, "<<<---REVERSE SORTED TEXT --->>>\n");
     for (int i = 0; i < real_num_of_strs; i++)
-        fprintf(file_out, "%s\n", rev_sorted_text.str_indexes[i]);
+        fprintf(file_out, "%s\n", rev_sorted_text.lines[i].str_index);
 
     fprintf(file_out, "\n<<<---ORIGINAL TEXT --->>>\n");
     for (int i = 0; i < real_num_of_strs; i++)
-        fprintf(file_out, "%s\n", orig_text.str_indexes[i]);
+        fprintf(file_out, "%s\n", orig_text.lines[i].str_index);
 
     fclose(file_out);
     free(orig_text.buffer);
-    free(orig_text.str_indexes);
-    free(sorted_text.str_indexes);
-    free(rev_sorted_text.str_indexes);
+    free(orig_text.lines);
+    free(sorted_text.lines);
+    free(rev_sorted_text.lines);
 }
 
-int ReadFromFile(Text* orig_text, Text* sorted_text, Text* rev_sorted_text, const int file_descriptor) //TODO: убрать от сюда инициализацию массива указателец
+int ReadFromFileToBuffer(Text* text, const int file_descriptor)
 {
     struct stat file_stat = {};
 
@@ -88,58 +95,58 @@ int ReadFromFile(Text* orig_text, Text* sorted_text, Text* rev_sorted_text, cons
     else if (MAX_FILE_SIZE < file_stat.st_size + 1)
         ERR_EXIT(ERR_FILE_TOO_BIG, file_descriptor);
 
-    else orig_text->buffer = (char*)malloc((size_t)file_stat.st_size + 1);
 
-    if (orig_text->buffer == NULL)
-        ERR_EXIT(ERR_BUFFER_NOT_CREATED, file_descriptor);
+    else text->buffer = (char*)malloc((size_t)file_stat.st_size + 1);//буфер
+    if (text->buffer == NULL) ERR_EXIT(ERR_BUFFER_NOT_CREATED, file_descriptor);
 
-    ssize_t real_file_size = read(file_descriptor, orig_text->buffer, (unsigned int)file_stat.st_size);
-    if (real_file_size <= 0) ERR_EXIT(ERR_FILE_DID_NOT_READ, file_descriptor);
+    text->text_size = read(file_descriptor, text->buffer, (unsigned int)file_stat.st_size);//размер файла, чтение в буфер
+    if (text->text_size <= 0) ERR_EXIT(ERR_FILE_DID_NOT_READ, file_descriptor);
 
-    unsigned int num_strs = 0;
-    for (int i = 0; i < real_file_size; i++) {if (orig_text->buffer[i] == '\r') num_strs++;}
-    num_strs++;
+    text->num_of_strs = 0;
+    for (int i = 0; i < text->text_size; i++) {if (text->buffer[i] == '\r') text->num_of_strs++;}//подсчет колва строк
+    text->num_of_strs++;
 
-    orig_text->str_indexes = (char**)calloc(num_strs, sizeof(char*));
-    if (orig_text->str_indexes == NULL) ERR_EXIT(ERR_BUFFER_NOT_CREATED, file_descriptor);
-    sorted_text->str_indexes = (char**)calloc(num_strs, sizeof(char*));
-    if (sorted_text->str_indexes == NULL) ERR_EXIT(ERR_BUFFER_NOT_CREATED, file_descriptor);
-    rev_sorted_text->str_indexes = (char**)calloc(num_strs, sizeof(char*));
-    if (rev_sorted_text->str_indexes == NULL) ERR_EXIT(ERR_BUFFER_NOT_CREATED, file_descriptor);
+    text->num_of_strs = GetStrsIndexesFromBuffer(text);
 
+    close(file_descriptor);
+    return (int)text->num_of_strs;
+}
+
+int GetStrsIndexesFromBuffer(Text* text)
+{
+    text->lines = (Line*)calloc((size_t)text->num_of_strs, sizeof(Line));// создание массивов индексов
+    if (text->lines == NULL) return ERR_BUFFER_NOT_CREATED;
 
     int buffer_i = 0;
     int indexes_i = 0;
+    unsigned int len_of_curr_str = 0;
 
-    orig_text->str_indexes[indexes_i] = orig_text->buffer;
+    text->lines[indexes_i].str_index = text->buffer;//разрезание на строки
     indexes_i++;
 
-    while (buffer_i < real_file_size)
+    while (buffer_i < text->text_size)
     {
         if (indexes_i >= NUM_OF_STRS) break;
 
-        if ((orig_text->buffer)[buffer_i] == '\r' && buffer_i <= real_file_size - 1)
+        if ((text->buffer)[buffer_i] == '\r' && buffer_i <= text->text_size - 1)
         {
-            (orig_text->buffer)[buffer_i] = '\0';
-            if (buffer_i <= real_file_size - 2)
+            (text->buffer)[buffer_i] = '\0';
+            (text->lines)[indexes_i - 1].len_of_str = len_of_curr_str;
+            len_of_curr_str = 0;
+            if (buffer_i <= text->text_size - 2)
             {
-                orig_text->str_indexes[indexes_i] = &(orig_text->buffer)[buffer_i + 2];
+                text->lines[indexes_i].str_index = &(text->buffer)[buffer_i + 2];
                 indexes_i++;
             }
             buffer_i += 2;
         }
-        else buffer_i++;
+        else {buffer_i++; len_of_curr_str++;};
     }
 
-    (orig_text->buffer)[real_file_size] = '\0';
+    if (indexes_i > 0) text->lines[indexes_i - 1].len_of_str = len_of_curr_str;
 
-    if (*orig_text->str_indexes[indexes_i - 1] == '\0') indexes_i--;
-    for (int i = 0; i < indexes_i; i++)
-    {
-        sorted_text->str_indexes[i] = orig_text->str_indexes[i];
-        rev_sorted_text ->str_indexes[i] = orig_text->str_indexes[i];
-    }
+    (text->buffer)[text->text_size] = '\0';
 
-    close(file_descriptor);
+    if (indexes_i > 0 && *text->lines[indexes_i - 1].str_index == '\0') indexes_i--;
     return indexes_i;
 }

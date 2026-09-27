@@ -5,8 +5,10 @@ int Compar(const void* a, const void* b)
     size_t i = 0;
     size_t j = 0;
 
-    const char* lhs = *(const char* const*) a;
-    const char* rhs = *(const char* const*) b;
+    const Line* line_l = (const Line*) a;
+    const Line* line_r = (const Line*) b;
+    const char* lhs = line_l->str_index;
+    const char* rhs = line_r->str_index;
 
     while (lhs[i] != '\0' && rhs[j] != '\0')
     {
@@ -31,13 +33,16 @@ int Compar(const void* a, const void* b)
 
 int Compar_Reverse(const void* a, const void* b)
 {
-    int i = 0;
-    int j = 0;
 
-    const char* lhs = *(const char* const*) a;
-    const char* rhs = *(const char* const*) b;
-    while (lhs[i] != '\0') i++; //TODO: UBRAT CRINZH
-    while (rhs[j] != '\0') j++;
+
+    const Line* line_l = (const Line*) a;
+    const Line* line_r = (const Line*) b;
+    const char* lhs = line_l->str_index;
+    const char* rhs = line_r->str_index;
+
+    int i = (int)line_l->len_of_str - 1;
+    int j = (int)line_r->len_of_str - 1;
+
     while (i >= 0 && j >= 0)
     {
         if (isalpha(lhs[i]) == 0)
