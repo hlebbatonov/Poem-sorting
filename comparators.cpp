@@ -22,7 +22,9 @@ int Compar(const void* a, const void* b)
             j++;
             continue;
         }
-        if (tolower(lhs[i]) != tolower(rhs[j])) return tolower(lhs[i]) - tolower(rhs[j]);
+        if (tolower(lhs[i]) != tolower(rhs[j]))
+            return tolower(lhs[i]) - tolower(rhs[j]);\
+
         i++;
         j++;
     }
@@ -33,8 +35,6 @@ int Compar(const void* a, const void* b)
 
 int Compar_Reverse(const void* a, const void* b)
 {
-
-
     const Line* line_l = (const Line*) a;
     const Line* line_r = (const Line*) b;
     const char* lhs = line_l->str_index;
@@ -55,11 +55,13 @@ int Compar_Reverse(const void* a, const void* b)
             j--;
             continue;
         }
-        if (tolower(lhs[i]) != tolower(rhs[j])) return tolower(lhs[i]) - tolower(rhs[j]);
+        if (tolower(lhs[i]) != tolower(rhs[j]))
+            return tolower(lhs[i]) - tolower(rhs[j]);
 
         i--;
         j--;
     }
+
     while(i >= 0 && !isalpha(lhs[i])) i--;
     while(j >= 0 && !isalpha(rhs[j])) j--;
     if (i < 0 && j < 0) return 0;

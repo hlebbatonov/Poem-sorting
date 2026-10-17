@@ -47,13 +47,12 @@ int main()
     sorted_text.lines = (Line*)calloc((size_t)sorted_text.num_of_strs, sizeof(Line));
     rev_sorted_text = orig_text;
     rev_sorted_text.lines = (Line*)calloc((size_t)rev_sorted_text.num_of_strs, sizeof(Line));
+
     for (int i = 0; i < orig_text.num_of_strs; i++)
     {
         sorted_text.lines[i] = orig_text.lines[i];
         rev_sorted_text.lines[i] = orig_text.lines[i];
     }
-
-
 
 
     FILE *file_out = fopen("onegin_out.txt", "w");
@@ -126,7 +125,6 @@ int GetStrsIndexesFromBuffer(Text* text)
 
     while (buffer_i < text->text_size)
     {
-        if (indexes_i >= NUM_OF_STRS) break;
 
         if ((text->buffer)[buffer_i] == '\r' && buffer_i <= text->text_size - 1)
         {
@@ -140,7 +138,11 @@ int GetStrsIndexesFromBuffer(Text* text)
             }
             buffer_i += 2;
         }
-        else {buffer_i++; len_of_curr_str++;};
+        else
+        {
+            buffer_i++;
+            len_of_curr_str++;
+        }
     }
 
     if (indexes_i > 0) text->lines[indexes_i - 1].len_of_str = len_of_curr_str;
